@@ -1,9 +1,12 @@
-target(project_name)
+target(g_project_name)
     add_files(
         "Device/ST/STM32MP1xx/Source/Templates/gcc/startup_stm32mp15xx.s"
     )
-
+    remove_files(
+        "Device/ST/STM32MP1xx/Source/Templates/system_stm32mp1xx_template.c"
+    )
     add_includedirs(
-        "Include"
+        "Include",
+        "Device/ST/STM32MP1xx/Include"
     )
 target_end()

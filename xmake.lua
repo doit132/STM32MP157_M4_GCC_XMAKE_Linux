@@ -1,5 +1,9 @@
-local project_name = "Project"
-local target_dir = "Build"
+-- project_name 被子目录下的 xmake.lua 需要, 所以这个变量不能设置成 local
+g_project_name = "STM32MP157"
+
+-- 这里只所以再用 project 等于 project_name, 而不是直接使用 project_name, 是因为会报 error: attempt to concatenate a nil value (global 'project_name') 错误
+local project_name = g_project_name
+local target_dir = "build"
 local download_cfg = "stlink.cfg"
 
 -- 设置工程名
@@ -13,44 +17,65 @@ set_defaultmode("releasedbg")
 set_plat("cross")
 set_arch("cortex-m4")
 
+add_rules("plugin.compile_commands.autoupdate", {outputdir = "./"})
+
 -- 自定义工具链
-toolchain("arm-none-linux-gnueabihf")
+toolchain("arm-none-eabi")
     -- 标记为独立工具链
     set_kind("standalone")
     -- 定义交叉编译工具链地址
-    set_sdkdir("/usr/local/arm/bin/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf")
-    set_bindir("/usr/local/arm/bin/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin")
+    set_sdkdir("/usr/local/arm/bin/gcc-arm-none-eabi-10.3-2021.10")
+    set_bindir("/usr/local/arm/bin/gcc-arm-none-eabi-10.3-2021.10/bin")
+    -- set_toolset("cc", "arm-none-eabi-gcc")
+    -- set_toolset("cxx", "arm-none-eabi-g++")
+    -- set_toolset("as", "arm-none-linux-gnueabihf-as")
+    -- 不能设置 ld , 因为一旦设置了这个东西, 它会弹出 unrecognised emulation mode: xxxx, 就是一些编译选项无法识别, 除非将 ld 设置成 arm-none-linux-gnueabihf-gcc
+    -- set_toolset("ld", "arm-none-linux-gnueabihf-ld")
 toolchain_end()
 
-local cflags = {
-	"-mcpu=cortex-m4",
-	" -mthumb",
-	"-mfloat-abi=hard  -mfpu=fpv4-sp-d16",
-	"-fdata-sections -ffunction-sections",
-	"-nostartfiles",
-	"-Os",
-}
-
-local ldflags = {
-	"-specs=nano.specs",
-	"-lc",
-	"-lm",
-	"-lnosys",
-	"-Wl,--gc-sections",
-}
+includes("Drivers/BSP/xmake.lua")
+includes("Drivers/CMSIS/xmake.lua")
+includes("Drivers/STM32MP1xx_HAL_Driver/xmake.lua")
+includes("Drivers/SYSTEM/xmake.lua")
+includes("User/xmake.lua")
 
 -- basic board info
 target(project_name)
+    -- 之所以使用变量, 是因为在多处使用到相同的值, 为了更改方便, 使用了变量
     local CPU = "-mcpu=cortex-m4"
-    local FPU = "-mfpu=fpv4-sp-d16"
-    local FLOAT_ABI = "-mfloat-abi=hard"
-    local LDSCRIPT = "STM32F411RCTx_FLASH.ld"
-
-    add_defines("USE_HAL_DRIVER", "STM32F411xE")
-    add_cflags(CPU, "-mthumb", FPU, FLOAT_ABI, "-fdata-sections", "-ffunction-sections", {force = true})
-    add_asflags(CPU, "-mthumb", FPU, FLOAT_ABI, "-fdata-sections", "-ffunction-sections", {force = true})
-    add_ldflags(CPU, "-mthumb", FPU, FLOAT_ABI, "-specs=nano.specs", "-T"..LDSCRIPT, "-lm -lc -lnosys", "-Wl,-Map=" .. target_dir .. "/" .. project_name .. ".map,--cref -Wl,--gc-sections", {force = true})
-    add_syslinks("m", "c", "nosys")
+    local FPU = "-mfpu=fpv4-sp-d16 -mfloat-abi=hard"
+    local LDSCRIPT = "Drivers/CMSIS/Device/ST/STM32MP1xx/Source/Templates/gcc/linker/stm32mp15xx_m4.ld"
+    local cflags = {
+        CPU,
+        FPU,
+        "--specs=nano.specs -specs=rdimon.specs --specs=nosys.specs -Wall -fmessage-length=0",
+        " -mthumb",
+        "-fdata-sections -ffunction-sections",
+        "-nostartfiles",
+        "-Os",
+    }
+    local asflags = {
+        CPU,
+        FPU,
+        " -mthumb",
+        "-fdata-sections -ffunction-sections",
+    }
+    local ldflags = {
+        CPU,
+        FPU,
+        -- " -mthumb",
+        -- 链接脚本
+        "-T"..LDSCRIPT,
+        -- 链接库文件
+        "-lc",
+        "-lm",
+        -- 产生的依赖文件存放位置
+        "-Wl,-Map=" .. target_dir .. "/" .. project_name .. ".map,--cref -Wl,--gc-sections",
+    }
+    add_defines("USE_HAL_DRIVER", "CORE_CM4", "STM32MP157Dxx")
+    add_cflags(cflags, {force = true})
+    add_asflags(asflags, {force = true})
+    add_ldflags(ldflags, {force = true})
 target_end()
 
 -- other config
@@ -60,8 +85,8 @@ target(project_name)
     set_dependir(target_dir .. "/dep")
     set_kind("binary")
     set_extension(".elf")
-    set_toolchains("arm-none-linux-gnueabihf")
-    -- add_toolchains("arm-none-eabi")
+
+    add_toolchains("arm-none-eabi")
     set_warnings("all")
     set_languages("c11", "cxx17")
 
@@ -74,7 +99,7 @@ target(project_name)
         set_optimize("fastest")
         set_strip("all")
     elseif is_mode("releasedbg") then
-        set_optimize("fastes")
+        set_optimize("faster")
         set_symbols("debug")
         set_strip("all")
     elseif is_mode() then
@@ -84,114 +109,19 @@ target(project_name)
     end
 target_end()
 
--- add files
-target(project_name)
-    -- add_files(
-    --     "Drivers/CMSIS/Device/ST/STM32MP1xx/Source/Templates/*.c",
-    --     "Drivers/CMSIS/Device/ST/STM32MP1xx/Source/Templates/gcc/startup_stm32mp15xx.s"
-    -- )
+after_build(
+    function(target)
+        import("core.project.task")
+        cprint("${bright green onwhite}${ok_hand} 储存空间占用情况 ${ok_hand}")
+        os.exec(string.format("arm-none-eabi-objcopy -O ihex %s.elf %s.hex", target_dir .. '/' .. project_name, target_dir .. '/' .. project_name))
+        os.exec(string.format("arm-none-eabi-objcopy -O binary %s.elf %s.bin", target_dir .. '/' .. project_name, target_dir .. '/' .. project_name))
+        os.exec(string.format("arm-none-eabi-size -Ax %s.elf", target_dir .. '/' .. project_name))
+        os.exec(string.format("arm-none-eabi-size -Bd %s.elf", target_dir .. '/' .. project_name))
+    end
+)
 
-    -- add_includedirs(
-    --     "Drivers/CMSIS/Device/ST/STM32MP1xx/Include",
-    --     "Drivers/CMSIS/Include"
-    -- )
-target_end()
-
-includes("Drivers/BSP/xmake.lua")
-includes("Drivers/CMSIS/xmake.lua")
-includes("Drivers/STM32MP1xx_HAL_Driver/xmake.lua")
-includes("Drivers/SYSTEM/xmake.lua")
-includes("User/xmake.lua")
-
-task("flash")
-    on_run(
-        function()
-            print("**********************以下开始写入 stm32*******************")
-            os.exec("st-info --probe")
-            --虽然 16 进制文件不需要指定地址, 但是好像默认是需要的, 不过这个地址不影响
-            os.exec("st-flash write ./build/output.hex 0x0800000")
-            -- os.exec("st-flash write ./build/output.bin 0x0800000")
-            print("******************如果上面没有 error, 则写入成功********************")
-        end
-    )
-task_end()
-
-task("flash")
-    on_run(
-        function()
-            os.exec("openocd -f jlink.cfg -f stm32f4x.cfg -c 'program Build/TestProject.hex verify reset exit'")
-        end
-    )
-    -- 设置插件的命令行选项
-    set_menu {
-        -- 设置菜单用法
-        usage = "xmake flash",
-        -- 设置菜单描述
-        description = "Download the flash",
-        -- 设置菜单选项，如果没有选项，可以设置为{}
-        options ={}
-    }
-task_end()
-
-target(project_name)
-    set_kind("binary")
-    set_toolchains("arm-none-linux-gnueabihf")
-    add_files()
-    add_includedirs()
-    -- 启用所有警告
-    set_warnings("all")
-    add_defines(
-        "CORE_CM4",
-        "USE_HAL_DRIVER",
-        "STM32MP157Dxx"
-    )
-
-    add_cflags(
-        "-mcpu=cortex-m4",
-        " -mthumb",
-        "-mfloat-abi=hard  -mfpu=fpv4-sp-d16",
-        "-fdata-sections -ffunction-sections",
-        "-nostartfiles",
-        "-Os",
-        "-Wall -fdata-sections -ffunction-sections",
-        "-g -gdwarf-2",{force = true}
-    )
-
-    add_asflags(
-        "-Og",
-        "-mcpu=cortex-m4",
-        "-mthumb",
-        "-x assembler-with-cpp",
-        "-Wall -fdata-sections -ffunction-sections",
-        "-g -gdwarf-2",{force = true}
-    )
-
-    add_ldflags(
-        "-Og",
-        "-mcpu=cortex-m4",
-        "-L./",
-        "-TSTM32F103C8Tx_FLASH.ld",
-        "-Wl,--gc-sections",
-        "-lc -lm -lnosys -lrdimon -u _printf_float",{force = true}
-    )
-
-    -- 设置编译文件的目录
-    set_targetdir("Build")
-    -- 设置生成的文件名称
-    set_filename(project_name ..".elf")
-
-    after_build(
-        function(target)
-            print("生成 HEX 和 BIN 文件")
-            os.exec("arm-none-linux-gnueabihf-objcopy -O ihex ./build//output.elf ./build//output.hex")
-            os.exec("arm-none-linux-gnueabihf-objcopy -O binary ./build//output.elf ./build//output.bin")
-            print("生成已完成")
-            import("core.project.task")
-            -- task.run("flash")
-            print("********************储存空间占用情况*****************************")
-            os.exec("arm-none-linux-gnueabihf-size -Ax ./build/output.elf")
-            os.exec("arm-none-linux-gnueabihf-size -Bx ./build/output.elf")
-            os.exec("arm-none-linux-gnueabihf-size -Bd ./build/output.elf")
-            print("heap-堆, stck-栈, .data-已初始化的变量全局/静态变量, bss-未初始化的 data, .text-代码和常量")
-        end
-    )
+-- on_run(
+--     function(target)
+--         os.exec("openocd -f %s -c 'program ./%s/%s.elf verify reset exit'", download_cfg, target_dir, project_name)
+--     end
+-- )

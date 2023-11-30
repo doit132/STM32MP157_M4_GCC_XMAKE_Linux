@@ -1,5 +1,5 @@
 projects/*/build/
-Build/
+build/
 .xmake/
 projects/*/.cache/
 .cache/

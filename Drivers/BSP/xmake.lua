@@ -1,4 +1,4 @@
-target(project_name)
+target(g_project_name)
     add_files(
         "Led/*.c"
     )

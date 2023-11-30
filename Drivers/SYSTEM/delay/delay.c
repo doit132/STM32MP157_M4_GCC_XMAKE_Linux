@@ -26,23 +26,23 @@
 
 /**
  * @brief		短时间延时函数
- * @param - n	要延时循环次数(空操作循环次数，模式延时)
+ * @param - n	        要延时循环次数(空操作循环次数，模式延时)
  * @retval 		无
  */
 void delay_short(volatile unsigned int n)
 {
-	while(n--){}
+	while (n--) {
+	}
 }
 
 /**
  * @brief		长延时函数
- * @param - n	要延时的时间循环数
+ * @param - n	        要延时的时间循环数
  * @retval 		无
  */
 void delay(volatile unsigned int n)
 {
-	while(n--)
-	{
+	while (n--) {
 		delay_short(0x7fff);
 	}
 }

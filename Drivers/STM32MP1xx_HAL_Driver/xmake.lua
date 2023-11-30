@@ -1,8 +1,27 @@
-target(project_name)
+target(g_project_name)
     add_files(
         "Src/*.c"
     )
-
+    remove_files(
+        "Src/stm32mp1xx_hal_msp_template.c",
+        "Src/stm32mp1xx_hal_timebase_tim_template.c",
+        "Src/stm32mp1xx_ll_adc.c",
+        "Src/stm32mp1xx_ll_delayblock.c",
+        "Src/stm32mp1xx_ll_dma.c",
+        "Src/stm32mp1xx_ll_exti.c",
+        "Src/stm32mp1xx_ll_fmc.c",
+        "Src/stm32mp1xx_ll_gpio.c",
+        "Src/stm32mp1xx_ll_i2c.c",
+        "Src/stm32mp1xx_ll_lptim.c",
+        "Src/stm32mp1xx_ll_pwr.c",
+        "Src/stm32mp1xx_ll_rcc.c",
+        "Src/stm32mp1xx_ll_rtc.c",
+        "Src/stm32mp1xx_ll_sdmmc.c",
+        "Src/stm32mp1xx_ll_spi.c",
+        "Src/stm32mp1xx_ll_tim.c",
+        "Src/stm32mp1xx_ll_usart.c",
+        "Src/stm32mp1xx_ll_utils.c"
+    )
     add_includedirs(
         "Inc",
         "Inc/Legacy"
