@@ -5,6 +5,9 @@ g_project_name = "STM32MP157"
 local project_name = g_project_name
 local target_dir = "build"
 local download_cfg = "stlink.cfg"
+local ldscript_file_path = "Drivers/CMSIS/Device/ST/STM32MP1xx/Source/Templates/gcc/linker/stm32mp15xx_m4.ld"
+local sdk_folder_path = "/usr/local/arm/bin/gcc-arm-none-eabi-10.3-2021.10"
+local bin_folder_path = sdk_folder_path.."/bin"
 
 -- 设置工程名
 set_project("stm32mp157-generic")
@@ -14,8 +17,7 @@ set_version("1.0.0")
 add_rules("mode.debug", "mode.release", "mode.releasedbg", "mode.minsizerel")
 set_defaultmode("releasedbg")
 
-set_plat("cross")
-set_arch("cortex-m4")
+set_config("plat","cross")
 
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "./"})
 
@@ -24,8 +26,8 @@ toolchain("arm-none-eabi")
     -- 标记为独立工具链
     set_kind("standalone")
     -- 定义交叉编译工具链地址
-    set_sdkdir("/usr/local/arm/bin/gcc-arm-none-eabi-10.3-2021.10")
-    set_bindir("/usr/local/arm/bin/gcc-arm-none-eabi-10.3-2021.10/bin")
+    set_sdkdir(sdk_folder_path)
+    set_bindir(bin_folder_path)
     -- set_toolset("cc", "arm-none-eabi-gcc")
     -- set_toolset("cxx", "arm-none-eabi-g++")
     -- set_toolset("as", "arm-none-linux-gnueabihf-as")
@@ -44,12 +46,11 @@ target(project_name)
     -- 之所以使用变量, 是因为在多处使用到相同的值, 为了更改方便, 使用了变量
     local CPU = "-mcpu=cortex-m4"
     local FPU = "-mfpu=fpv4-sp-d16 -mfloat-abi=hard"
-    local LDSCRIPT = "Drivers/CMSIS/Device/ST/STM32MP1xx/Source/Templates/gcc/linker/stm32mp15xx_m4.ld"
     local cflags = {
         CPU,
         FPU,
         "--specs=nano.specs -specs=rdimon.specs --specs=nosys.specs -Wall -fmessage-length=0",
-        " -mthumb",
+        "-mthumb",
         "-fdata-sections -ffunction-sections",
         "-nostartfiles",
         "-Os",
@@ -57,15 +58,15 @@ target(project_name)
     local asflags = {
         CPU,
         FPU,
-        " -mthumb",
+        "-mthumb",
         "-fdata-sections -ffunction-sections",
     }
     local ldflags = {
         CPU,
         FPU,
-        -- " -mthumb",
+        -- "-mthumb",
         -- 链接脚本
-        "-T"..LDSCRIPT,
+        "-T"..ldscript_file_path,
         -- 链接库文件
         "-lc",
         "-lm",
